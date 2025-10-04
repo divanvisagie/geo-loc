@@ -61,7 +61,7 @@ Output format.
 .RS
 .TP
 .B plain
-(default): lat lon in fixed decimal, space-separated.
+(default): lat lon followed by "(±ACC m @ TIMESTAMP)" when accuracy and provider time are available.
 .TP
 .B json
 : { "latitude": f64, "longitude": f64, "accuracy_m": f64|null, "provider": "…", "timestamp": "RFC3339" }
@@ -140,7 +140,7 @@ mode).
 .TP
 .B corelocation
 (macOS)
-Uses the system location daemon. Requires a signed binary with TCC permission. A minimal app bundle with NSLocationWhenInUseUsageDescription is shipped, and the CLI helper invokes the bundled agent to trigger permission prompts. Accuracy is determined by CoreLocation and radios available (Wi-Fi/GPS).
+Uses the system location daemon. Requires a signed binary with TCC permission. A minimal app bundle with NSLocationWhenInUseUsageDescription is shipped, and the CLI helper invokes the bundled agent to trigger permission prompts. Accuracy is determined by CoreLocation and radios available (Wi-Fi/GPS). When the CoreLocation query fails, the command automatically falls back to IP-based geolocation unless an explicit provider was requested.
 .TP
 .B geoclue
 (Linux)
