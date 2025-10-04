@@ -1,0 +1,270 @@
+.TH GEO-LOC 1 "October 2025" "User Commands"
+.SH NAME
+geo-loc \- print the host's current geographic location in a pipe-friendly format
+.SH SYNOPSIS
+.B geo-loc
+[
+.B \-\-format
+.I json|csv|env|plain
+]
+[
+.B \-\-provider
+.I auto|corelocation|geoclue|ip
+]
+.br
+[
+.B \-\-accuracy
+.I level
+]
+[
+.B \-\-timeout
+.I seconds
+]
+[
+.B \-\-watch
+.I interval
+]
+.br
+[
+.B \-\-no-cache
+]
+[
+.B \-\-verbose
+]
+[
+.B \-\-help
+]
+[
+.B \-\-version
+]
+.SH DESCRIPTION
+.B geo-loc
+queries the system's native location service and prints a single record
+describing the current position. The default output is a single line of
+compact JSON suitable for shell pipelines.
+.PP
+On macOS,
+.B geo-loc
+uses CoreLocation. On Linux, it uses the GeoClue 2 D-Bus API. An optional
+provider
+.B ip
+performs IP-based geolocation as a portability fallback.
+.PP
+The command exits non-zero on error and prints nothing to stdout; diagnostics
+go to standard error only if
+.B \-\-verbose
+is used.
+.SH OPTIONS
+.TP
+.B \-\-format \fIjson|csv|env|plain\fR
+Output format.
+.RS
+.TP
+.B plain
+(default): lat lon in fixed decimal, space-separated.
+.TP
+.B json
+: { "latitude": f64, "longitude": f64, "accuracy_m": f64|null, "provider": "…", "timestamp": "RFC3339" }
+.TP
+.B csv
+: latitude,longitude,accuracy_m,timestamp,provider (empty fields omitted at end)
+.TP
+.B env
+: lines suitable for eval, e.g. LAT=59.3293 and LON=18.0686; accuracy and provider as ACC, PROVIDER, TS.
+.RE
+.TP
+.B \-\-provider \fIauto|corelocation|geoclue|ip\fR
+Choose a provider explicitly.
+.B auto
+(default) selects CoreLocation on macOS, GeoClue on Linux, and
+.B ip
+where no native provider is available.
+.TP
+.B \-\-accuracy \fIlevel\fR
+Requested accuracy level. Mapped to platform-specific settings:
+.RS
+.TP
+macOS: nearest ten meters unless elevated by the user;
+.B \-\-accuracy street|city|country
+maps to CoreLocation desired accuracy presets.
+.TP
+Linux (GeoClue): integer 1–5 mapping to GeoClue levels (1=country, 2=region, 3=city, 4=street, 5=exact if available). Default: 3.
+.RE
+.TP
+.B \-\-timeout \fIseconds\fR
+Maximum time to wait for an initial fix before failing (default: 5).
+.B \-\-watch
+overrides this.
+.TP
+.B \-\-watch \fIinterval\fR
+Stream updates continuously every
+.I interval
+seconds until interrupted. Each update is a separate record in the chosen format. Implies
+.B \-\-no-cache .
+.TP
+.B \-\-no-cache
+Do not reuse any recent fix; always request a fresh position.
+.TP
+.B \-\-verbose
+Show diagnostics on standard error.
+.TP
+.B \-\-help
+Show usage and exit.
+.TP
+.B \-\-version
+Print version and provider support at build time.
+.SH OUTPUT
+The default JSON object contains these fields:
+.TP
+.B latitude
+(f64)
+.TP
+.B longitude
+(f64)
+.TP
+.B accuracy_m
+(f64 or null): horizontal accuracy, meters.
+.TP
+.B provider
+(string): corelocation, geoclue, or ip.
+.TP
+.B timestamp
+(RFC3339, UTC): time associated with the fix (provider-sourced if available, else current time).
+.PP
+When
+.B \-\-watch
+is used, one record is printed per line (JSON Lines in
+.B json
+mode).
+.SH PROVIDERS
+.TP
+.B corelocation
+(macOS)
+Uses the system location daemon. Requires a signed binary with TCC permission. A minimal app bundle with NSLocationWhenInUseUsageDescription is shipped, and the CLI helper invokes the bundled agent to trigger permission prompts. Accuracy is determined by CoreLocation and radios available (Wi-Fi/GPS).
+.TP
+.B geoclue
+(Linux)
+Communicates with GeoClue 2 over the session bus. A .desktop file named geo-loc.desktop is installed, and the client identifies with DesktopId=geo-loc. Network access and a scanning backend (e.g., NetworkManager) improve accuracy.
+.TP
+.B ip
+(portable fallback)
+IP-based geolocation. Lower accuracy; disabled unless compiled with the ip feature. May contact a public endpoint.
+.SH ENVIRONMENT
+.TP
+.B XDG_STATE_HOME
+If set and caching is enabled (future option), cached fixes may be stored under $XDG_STATE_HOME/geo-loc/. Not used when
+.B \-\-no-cache
+or
+.B \-\-watch
+is active.
+.TP
+.B DBUS_SESSION_BUS_ADDRESS
+(Linux)
+Must reference a reachable session bus for GeoClue.
+.SH SECURITY & PRIVACY
+.IP \(bu 2
+.B No silent persistence.
+The tool does not write coordinates to disk unless an explicit caching flag is introduced.
+.IP \(bu 2
+.B Least output.
+Coordinates are emitted to stdout only. Diagnostics go to stderr.
+.IP \(bu 2
+.B macOS TCC.
+The first run will prompt for Location permission. Denial results in exit status 77.
+.IP \(bu 2
+.B GeoClue policy.
+Authorization can be denied by portal/desktop policy; the tool reports the D-Bus error and exits with status 77.
+.SH EXIT STATUS
+.IP \(bu 2
+.B 0
+— success; a record was printed to stdout.
+.IP \(bu 2
+.B 1
+— generic error (unexpected failure).
+.IP \(bu 2
+.B 2
+— invalid usage/arguments.
+.IP \(bu 2
+.B 70
+— provider unavailable (service missing, D-Bus unreachable, CoreLocation not initialized).
+.IP \(bu 2
+.B 71
+— timeout expired before obtaining a fix.
+.IP \(bu 2
+.B 77
+— permission denied by platform policy (TCC/portal).
+.SH EXAMPLES
+Print JSON and extract lat,lon:
+.PP
+.nf
+geo-loc | jq -r '.latitude,.longitude' | paste -sd,
+.fi
+.PP
+Export as environment variables:
+.PP
+.nf
+eval "$(geo-loc --format env)"
+printf 'You are at %s,%s\\n' "$LAT" "$LON"
+.fi
+.PP
+CSV into awk:
+.PP
+.nf
+geo-loc --format csv | awk -F, '{printf "lat=%s lon=%s (±%sm)\\n", $1,$2,$3}'
+.fi
+.PP
+Watch location updates every 2s as JSON Lines:
+.PP
+.nf
+geo-loc --watch 2 | jq .
+.fi
+.PP
+Force GeoClue and fail fast after 3s:
+.PP
+.nf
+geo-loc --provider geoclue --timeout 3
+.fi
+.SH FILES
+.TP
+.B /usr/local/bin/geo-loc
+CLI entry point.
+.TP
+.B /usr/local/libexec/geo-loc-agent
+(macOS)
+Helper used to interface with CoreLocation under TCC.
+.TP
+.B /usr/share/applications/geo-loc.desktop
+(Linux)
+Desktop entry used to satisfy GeoClue policy.
+.SH COMPATIBILITY
+.IP \(bu 2
+macOS 12+ (Intel & Apple Silicon).
+.IP \(bu 2
+Linux with GeoClue 2 and a running session bus. Wayland/X11 desktops supported.
+.IP \(bu 2
+Other Unix (e.g., FreeBSD): provider ip only if compiled with the ip feature.
+.SH DIAGNOSTICS
+Typical messages (stderr):
+.IP \(bu 2
+geo-loc: permission denied by platform — user or policy denied access (exit 77).
+.IP \(bu 2
+geo-loc: provider unavailable: geoclue service not found — install/enable GeoClue (exit 70).
+.IP \(bu 2
+geo-loc: timeout waiting for fix (5s) — increase
+.B \-\-timeout
+or
+.B \-\-watch
+(exit 71).
+.IP \(bu 2
+geo-loc: invalid accuracy level: 6 — see
+.B \-\-accuracy .
+.SH SEE ALSO
+.BR CoreLocationCLI (1),
+.BR systemsettings (1)
+(macOS privacy),
+.BR geoclue (5),
+.BR gdbus (1),
+.BR NetworkManager (8),
+.BR jq (1).
+.SH NOTES
+This utility aims to behave like a classic Unix filter: single record to stdout, silence otherwise, clean exit codes, and predictable formats. It never edits your files, it never opens your browser, and it certainly never invokes nano.
