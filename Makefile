@@ -16,10 +16,10 @@ install:
 	rm geo-loc.1.gz
 
 local-install: build
-	mkdir -p $(HOME)/bin
-	install -m 755 target/release/geo-loc $(HOME)/bin/geo-loc
-	mkdir -p $(HOME)/man/man1
-	cp geo-loc.1 $(HOME)/man/man1/geo-loc.1
+	mkdir -p $(HOME)/.local/bin
+	install -m 755 target/release/geo-loc $(HOME)/.local/bin/geo-loc
+	mkdir -p $(HOME)/.local/share/man/man1
+	cp geo-loc.1 $(HOME)/.local/share/man/man1/geo-loc.1
 
 clean:
 	cargo clean
