@@ -3,7 +3,7 @@ use clap::{Parser, ValueEnum};
 #[derive(Parser)]
 #[command(name = "geo-loc")]
 #[command(about = "Print the host's current geographic location in a pipe-friendly format")]
-#[command(version = "geo-loc 0.1.0\nProviders: ip (portable fallback)")]
+#[command(version = "geo-loc 0.1.0\nProviders: corelocation (macOS), ip (portable fallback)")]
 pub struct Args {
     #[arg(long, value_enum, default_value = "plain")]
     pub format: Format,
