@@ -7,9 +7,8 @@ authors = ["Divan Visagie <me@divanv.com>"]
 description = "A command-line tool to print the host's geographic location in pipe-friendly formats"
 
 [dependencies]
-clap = { version = "4.0", features = ["derive"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "time"] }
+zbus = "3.14"
+zvariant = "3.15"
 reqwest = { version = "0.11", features = ["json"] }
-chrono = { version = "0.4", features = ["serde"] }
-tokio = { version = "1.0", features = ["full"] }
+serde_json = "1.0"

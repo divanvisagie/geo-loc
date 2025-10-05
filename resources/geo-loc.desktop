@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=geo-loc
+Comment=Geographic location command-line tool
+Exec=geo-loc
+NoDisplay=true
+Categories=System;
